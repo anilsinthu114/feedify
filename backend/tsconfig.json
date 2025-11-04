@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    /* === Node.js environment === */
+    "target": "ES2021",                        // Modern JS target
+    "module": "ESNext",
+"moduleResolution": "bundler",
+"noEmit": true      ,         // Node-compatible module system
+    "lib": ["ESNext"],                         // Latest JS features           // Resolve Node modules
+    "esModuleInterop": true,                   // Allow default import syntax
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    /* === TypeScript Strictness === */
+    "strict": true,
+    "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* === Project Structure === */
+    "rootDir": "src",
+    "outDir": "dist",
+
+    /* === Compatibility === */
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
