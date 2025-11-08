@@ -1,0 +1,13 @@
+{
+  "name": "expert-feedback",
+  "private": true,
+  "scripts": {
+  "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"bun --cwd backend run dev\" \"bun --cwd frontend run dev\"",
+    "backend": "bun --cwd backend run dev",
+    "frontend": "bun --cwd frontend run dev",
+    "build": "bun --cwd frontend run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
