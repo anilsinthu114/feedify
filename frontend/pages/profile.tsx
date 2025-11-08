@@ -1,6 +1,6 @@
 "use client";
 
-import { verifyAccess } from "@/lib/auth";
+import { useUser } from "@/lib/UserContext";
 import styles from "@/styles/Profile.module.css";
 import { motion } from "framer-motion";
 import { useRouter } from "next/router";
@@ -9,22 +9,26 @@ import toast from "react-hot-toast";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string; email: string; role: string } | null>(null);
+  const { user, logout } = useUser();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    async function loadUser() {
-      const data = await verifyAccess();
-      if (!data) {
-        toast.error("Please log in to access your profile.");
-        router.push("/hr/login");
-        return;
-      }
-      setUser(data);
-    }
-    loadUser();
-  }, [router]);
+    setMounted(true);
 
-  if (!user) return <p className={styles.loading}>Loading...</p>;
+    if (!user) {
+      toast.error("Please log in to access your profile.");
+      router.push("/hr/login");
+      return;
+    }
+  }, [user, router]);
+
+  if (!mounted || !user) return <p className={styles.loading}>Loading...</p>;
+
+  const handleLogout = async (): Promise<void> => {
+    await logout();
+    toast.success("Logged out successfully!");
+    setTimeout(() => router.push("/"), 800);
+  }
 
   return (
     <motion.div
@@ -37,14 +41,9 @@ export default function ProfilePage() {
         <h2 className={styles.heading}>👤 My Profile</h2>
         <p><strong>Name:</strong> {user.name}</p>
         <p><strong>Email:</strong> {user.email}</p>
-        <p><strong>Role:</strong> {user.role.toUpperCase()}</p>
-
         <button
           className={styles.btn}
-          onClick={() => {
-            toast.success("Logged out successfully!");
-            setTimeout(() => router.push("/"), 800);
-          }}
+          onClick={handleLogout}
         >
           Logout
         </button>

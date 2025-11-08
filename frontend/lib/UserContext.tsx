@@ -2,11 +2,13 @@
 
 import { verifyAccess } from "@/lib/auth";
 import { createContext, useContext, useEffect, useState } from "react";
+import { API_BASE } from "./config";
 
 interface User {
   id: number;
   role: string;
   name?: string;
+  email: string;
 }
 
 interface UserContextType {
@@ -16,30 +18,26 @@ interface UserContextType {
   logout: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType | null>(null);
+// Create context with initial values
+const UserContext = createContext<UserContextType>({
+  user: null,
+  setUser: () => {},
+  refreshUser: async () => {},
+  logout: async () => {},
+});
 
 export const useUser = () => {
-  const ctx = useContext(UserContext);
-  if (!ctx) throw new Error("useUser must be used within UserProvider");
-  return ctx;
+  const context = useContext(UserContext);
+  if (!context) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
 };
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
-  // Load user on mount (from sessionStorage or backend)
-  useEffect(() => {
-    const cached = sessionStorage.getItem("user");
-    if (cached) setUser(JSON.parse(cached));
-    else verifyAccess().then((u) => {
-      if (u) {
-        setUser(u);
-        sessionStorage.setItem("user", JSON.stringify(u));
-      }
-    });
-  }, []);
-
-  async function refreshUser() {
+  const refreshUser = async () => {
     const u = await verifyAccess();
     if (u) {
       setUser(u);
@@ -48,11 +46,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       sessionStorage.removeItem("user");
     }
-  }
+  };
 
-  async function logout() {
+  const logout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/auth/logout`, {
+      await fetch(`${API_BASE}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -61,7 +59,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null);
     sessionStorage.removeItem("user");
-  }
+  };
+
+  useEffect(() => {
+    const cached = sessionStorage.getItem("user");
+    if (cached) {
+      setUser(JSON.parse(cached));
+    } else {
+      verifyAccess().then((u) => {
+        if (u) {
+          setUser(u);
+          sessionStorage.setItem("user", JSON.stringify(u));
+        }
+      });
+    }
+  }, []);
 
   return (
     <UserContext.Provider value={{ user, setUser, refreshUser, logout }}>

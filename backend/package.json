@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-  "dev": "nodemon --watch src --exec \"bun run src/server.ts\"",
-  "start": "bun run src/server.ts"
+    "dev": "nodemon --watch src --exec \"bun run src/server.ts\"",
+    "start": "bun run src/server.ts"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -15,8 +15,9 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^24.9.2",
+    "@types/node": "^24.10.0",
     "drizzle-kit": "^0.31.6",
+    "nodemailer": "^7.0.10",
     "nodemon": "^3.1.10"
   },
   "peerDependencies": {
@@ -24,7 +25,7 @@
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
-    "bcryptjs": "^3.0.2",
+    "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -32,7 +33,7 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.15.3",
-    "resend": "^6.4.0",
+    "resend": "^6.4.1",
     "sql.js": "^1.13.0",
     "sqlite3": "^5.1.7"
   }

@@ -1,40 +1,57 @@
 "use client";
+
 import { API_BASE } from "@/lib/config";
 import { useUser } from "@/lib/UserContext";
 import { motion } from "framer-motion";
 import Router from "next/router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import styles from "../../styles/Login.module.css";
 
-const { refreshUser } = useUser();
-
-
 export default function LoginPage() {
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const { refreshUser } = useUser();
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function submit(e: any) {
     e.preventDefault();
-    const res = await fetch(`${API_BASE}/api/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, password }),
-    });
-    const data = await res.json();
-    if (!res.ok) return setMsg(data.error || "Login failed");
-    setMsg("Login successful! Redirecting...");
-    await refreshUser();
-    setTimeout(() => Router.push("/hr/feedback-new"), 700);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMsg(data.error || "Login failed");
+        return;
+      }
+      setMsg("Login successful! Redirecting...");
+      await refreshUser();
+      setTimeout(() => Router.push("/hr/feedback-new"), 700);
+    } catch (error) {
+      setMsg("An error occurred during login");
+    } finally {
+      setLoading(false);
+    }
   }
 
-return (
+  if (!mounted) {
+    return null;
+  }
+
+  return (
     <div className={styles.loginContainer}>
       <motion.div
         className={styles.loginCard}

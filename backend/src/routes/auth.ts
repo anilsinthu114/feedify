@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { eq, Name } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import express from "express";
 import { initDb } from "../db/drizzle.js";
 import { users } from "../db/schema.js";
@@ -8,36 +8,29 @@ import { signJwt, verifyJwt } from "../utils/jwt.js";
 
 const router = express.Router();
 
-// 🔹 Lazy-load DB
 let dbPromise: any = null;
 async function getDb() {
   if (!dbPromise) dbPromise = initDb();
   return dbPromise;
 }
 
-// ✅ Define role hierarchy clearly
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: ["admin", "manager", "hr", "user"],
   manager: ["hr", "user"],
   hr: ["user"],
 };
 
-// 🟢 REGISTER — only allowed roles can create other roles
 router.post("/register", authorize(["admin", "manager", "hr"]), async (req: AuthenticatedRequest, res) => {
   try {
     const { name, email, password, role } = req.body;
     const creatorRole = req.user?.role || "user";
 
-    console.log("🆕 Registration attempt:", { name, email, role, creatorRole });
-
     if (!name || !email || !password || !role) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-    // ✅ Enforce creation rule based on role hierarchy
     const allowedRoles = ROLE_PERMISSIONS[creatorRole] || [];
     if (!allowedRoles.includes(role)) {
-      console.warn(`🚫 ${creatorRole} not allowed to create ${role}`);
       return res.status(403).json({
         error: `You (${creatorRole}) are not authorized to create ${role} users.`,
       });
@@ -45,7 +38,6 @@ router.post("/register", authorize(["admin", "manager", "hr"]), async (req: Auth
 
     const db = await getDb();
 
-    // Check if email already exists
     const existing = await db
       .select()
       .from(users)
@@ -61,20 +53,19 @@ router.post("/register", authorize(["admin", "manager", "hr"]), async (req: Auth
     const [created] = await db
       .insert(users)
       .values({ name, email, passwordHash, role })
-      .returning();
+      .returning()
+      .execute();
 
-    console.log(`✅ ${creatorRole} created ${role} user: ${email}`);
-    res.status(201).json({ ok: true, userId: created.id });
+    return res.status(201).json({ ok: true, userId: created.id });
   } catch (err) {
     console.error("Registration error:", err);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("🔐 Login attempt for:", email);
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password required" });
@@ -82,7 +73,6 @@ router.post("/login", async (req, res) => {
 
     const db = await getDb();
 
-    // 🔹 Fetch user by email
     const user = await db
       .select()
       .from(users)
@@ -91,96 +81,124 @@ router.post("/login", async (req, res) => {
       .then((r) => r[0]);
 
     if (!user) {
-      console.warn("🚫 No user found:", email);
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     let ok = false;
     let needsUpgrade = false;
 
-    // ✅ If passwordHash is bcrypt hash (starts with "$2"), compare using bcrypt
     if (user.passwordHash?.startsWith("$2")) {
       ok = await bcrypt.compare(password, user.passwordHash);
     } else {
-      // ✅ Fallback for plain text passwords (legacy)
       ok = password === user.passwordHash;
-      needsUpgrade = ok; // mark for upgrade if valid
+      needsUpgrade = ok;
     }
 
     if (!ok) {
-      console.warn("🚫 Invalid credentials for:", email);
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // ✅ Auto-upgrade plain text password to bcrypt
     if (needsUpgrade) {
       try {
         const newHash = await bcrypt.hash(password, 10);
-        await db.update(users)
+        await db
+          .update(users)
           .set({ passwordHash: newHash })
-          .where(eq(users.id, user.id));
-        console.log(`🔒 Auto-upgraded password for ${email}`);
+          .where(eq(users.id, user.id))
+          .execute(); // ensure immediate persistence
       } catch (upgradeErr) {
-        console.error("⚠️ Password upgrade failed:", upgradeErr);
+        console.error("Password upgrade failed:", upgradeErr);
       }
     }
 
-    // ✅ Issue JWT with actual role
-    const token = signJwt({ sub: user.id,  role: user.role });
+    // Include name and email in the JWT
+    const token = signJwt({
+      sub: user.id,
+      role: user.role,
+      name: user.name,
+      email: user.email,
+    });
 
-    // ✅ Set secure HTTP-only cookie
     res.cookie("token", token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
-      maxAge: 5* 24 * 60 * 60 * 1000, // 7 days
+      secure: process.env.NODE_ENV === "production" || false,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    console.log(`✅ Login successful: ${user.role} (${email})`);
-    res.json({
+    return res.json({
       ok: true,
       name: user.name,
+      email: user.email,
       role: user.role,
     });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
-// 🟢 GET ALL USERS — for admin view
 router.get("/users", authorize(["admin"]), async (req, res) => {
   try {
     const db = await getDb();
     const allUsers = await db.select().from(users);
-    res.json({ ok: true, users: allUsers });
+    return res.json({ ok: true, users: allUsers });
   } catch (err) {
     console.error("Get users error:", err);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
-// 🟢 PROFILE
+// PROFILE: ensure name/email are present and up-to-date
 router.get("/me", async (req, res) => {
   try {
     const token =
       req.cookies?.token || req.headers.authorization?.replace("Bearer ", "");
     if (!token) return res.status(401).json({ error: "Missing token" });
 
-    const payload = verifyJwt<{ sub: number; role: string }>(token);
+    const payload = verifyJwt<{ sub: number; role: string; name?: string; email?: string }>(token);
     if (!payload) return res.status(401).json({ error: "Invalid token" });
 
-    res.json({ ok: true, user: payload });
+    // Always refresh from DB to reflect immediate updates
+    const db = await getDb();
+    const dbUser = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.id, payload.sub))
+      .limit(1)
+      .then((r) => r[0]);
+
+    if (!dbUser) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+
+    return res.json({
+      ok: true,
+      user: {
+        sub: dbUser.id,
+        role: dbUser.role,
+        name: dbUser.name,
+        email: dbUser.email,
+      },
+    });
   } catch (err) {
     console.error("Profile error:", err);
-    res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ error: "Server error" });
   }
 });
 
-// 🟢 LOGOUT
 router.post("/logout", (req, res) => {
-  res.clearCookie("token");
-  res.json({ ok: true });
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production" || false,
+  });
+  return res.json({ ok: true });
 });
 
 export default router;

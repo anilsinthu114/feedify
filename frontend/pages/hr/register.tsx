@@ -6,12 +6,11 @@ import Router from "next/router";
 import { useState } from "react";
 import styles from "../../styles/Register.module.css";
 
-const ROLES = ["admin", "manager", "hr", "user"]; // reordered for better UX
+const ROLES = ["admin", "manager", "hr", "user"];
 
 export default function RegisterPage() {
   const { user, loading, unauthorized } = useAuthGuard(["admin", "manager", "hr"]);
 
-  // ✅ default role set to "user"
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "user" });
   const [msg, setMsg] = useState("");
   const [sending, setSending] = useState(false);

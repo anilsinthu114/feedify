@@ -25,8 +25,7 @@ router.post("/", async (req, res) => {
 
     console.log("📝 Incoming feedback:", req.body);
 
-    // 1️⃣ Require JWT (HR only)
-    const token =
+     const token =
       req.cookies?.token || req.headers.authorization?.replace("Bearer ", "");
     if (!token) return res.status(401).json({ error: "Missing auth token" });
 
@@ -36,19 +35,15 @@ router.post("/", async (req, res) => {
     }
 
     const createdBy = payload.sub;
-
-    // 2️⃣ Validate fields
     if (!userName || !userEmail || !sessionAt) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
     const db = await getDb();
 
-    // 3️⃣ Generate secure token
     const secureToken = crypto.randomBytes(24).toString("hex");
     const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // valid 7 days
 
-    // 4️⃣ Insert record
     await db.insert(feedbacks).values({
       userName,
       userEmail,
@@ -60,11 +55,10 @@ router.post("/", async (req, res) => {
       secureToken,
       tokenExpiresAt,
       createdAt: new Date().toISOString(),
-    });
+    }).execute();
 
-    // 5️⃣ Generate feedback link
     const link = `${process.env.FRONTEND_URL}/feedback/view/${secureToken}`;
-    await sendFeedbackLinkEmail(userEmail, userName, link);
+    await sendFeedbackLinkEmail(userEmail, userName, link, secureToken);
 
     res.json({ ok: true, message: "Feedback created and email sent" });
   } catch (err) {
@@ -84,7 +78,6 @@ router.post("verify/:token", async (req, res) => {
       .where(eq(feedbacks.secureToken, token));
     if (!record) return res.status(404).json({ error: "Invalid or expired token" });
     
-    // Check token expiry
     if (record.tokenExpiresAt && new Date(record.tokenExpiresAt) < new Date()) {
       return res.status(410).json({ error: "Token expired" });
     }
@@ -95,10 +88,7 @@ router.post("verify/:token", async (req, res) => {
   }
 });
 
-/**
- * 🟢 GET /api/feedback/:token
- * Public user view via secure token link
- */
+
 router.get("/view/:token", async (req, res) => {
   try {
     const { token } = req.params;
@@ -107,11 +97,9 @@ router.get("/view/:token", async (req, res) => {
     const [record] = await db
       .select()
       .from(feedbacks)
-      .where(eq(feedbacks.secureToken, token));
+      .where(eq(feedbacks.secureToken, token)).limit(1);
 
     if (!record) return res.status(404).json({ error: "Invalid or expired link" });
-
-    // Check token expiry
     if (record.tokenExpiresAt && new Date(record.tokenExpiresAt) < new Date()) {
       return res.status(410).json({ error: "Link expired" });
     }
@@ -123,10 +111,6 @@ router.get("/view/:token", async (req, res) => {
   }
 });
 
-/**
- * 🟢 GET /api/feedback/view
- * HR view: all feedback entries
- */
 router.get("/view", async (req, res) => {
   try {
     const token =
@@ -136,8 +120,6 @@ router.get("/view", async (req, res) => {
     if (!payload || payload.role !== "hr")
       return res.status(403).json({ error: "Unauthorized" });
 
-    // Optional query param to filter by user id (createdBy)
-    // e.g. GET /api/feedback/view?userId=123
     const userIdParam = req.query.userId as string | undefined;
     const userId = userIdParam !== undefined ? Number(userIdParam) : undefined;
     if (userIdParam !== undefined && Number.isNaN(userId)) {
@@ -159,10 +141,6 @@ router.get("/view", async (req, res) => {
   }
 });
 
-/**
- * 🟢 GET /api/feedback/admin/list
- * Admin-only view of all feedbacks
- */
 router.get("/admin/list", async (req, res) => {
   try {
     const token =

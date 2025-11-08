@@ -1,9 +1,6 @@
 "use client";
 
-import {
-    logout,
-    verifyAccess
-} from "@/lib/auth";
+import { useUser } from "@/lib/UserContext";
 import styles from "@/styles/Settings.module.css";
 import { motion } from "framer-motion";
 import { useRouter } from "next/router";
@@ -12,22 +9,19 @@ import toast from "react-hot-toast";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  const { user, logout } = useUser();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    async function init() {
-      const data = await verifyAccess();
-      if (!data || !["admin", "hr", "manager"].includes(data.role)) {
-        toast.error("You are not authorized to access Settings.");
-        router.push("/404");
-        return;
-      }
-      setUser(data);
-    }
-    init();
-  }, [router]);
+    setMounted(true);
 
-  if (!user) return <p className={styles.loading}>Loading...</p>;
+    if (!user || !["admin", "hr", "manager"].includes(user.role)) {
+      toast.error("You are not authorized to access Settings.");
+      return;
+    }
+  }, [user, router]);
+
+  if (!mounted || !user) return <p className={styles.loading}>Loading...</p>;
 
   return (
     <motion.div
@@ -68,22 +62,10 @@ export default function SettingsPage() {
             📋 View All Feedback
           </button>
         </div>
-        <div >
-            <button
-              className={styles.btn}
-              onClick={() => {
-                logout();
-                toast.success("Logged out successfully!");
-                setTimeout(() => router.push("/"), 800);
-              }}
-            >
-              Logout
-            </button>
-            </div>
-        </div>
-        <div className={styles.note}>
-          * Only users with roles Admin, HR, or Manager can access these settings.
-        </div>
+      </div>
+      <div className={styles.note}>
+        * Only users with roles Admin, HR, or Manager can access these settings.
+      </div>
     </motion.div>
   );
 }

@@ -9,7 +9,7 @@ export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  role: text("role").notNull(), // ✅ Must be explicitly assigned, no default
+  role: text("role").notNull(),
   passwordHash: text("password_hash"),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`)
 });
