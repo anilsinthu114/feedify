@@ -1,27 +1,28 @@
-import { drizzle } from "drizzle-orm/sql-js";
+import { drizzle } from "drizzle-orm/bun-sqlite";
+import { Database } from "bun:sqlite";
 import fs from "fs";
 import path from "path";
-import initSqlJs from "sql.js";
 
-const dbPath = path.resolve("src/db/feedback.db");
+// ✅ Use top-level data folder for persistence
+const dataDir = path.resolve("data");
+const dbPath = path.join(dataDir, "feedback.db");
 
 export const initDb = async () => {
-  const SQL = await initSqlJs();
-
-  let fileBuffer: Uint8Array | undefined;
-  if (fs.existsSync(dbPath)) {
-    fileBuffer = fs.readFileSync(dbPath);
+  // ensure data directory exists
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
   }
 
-  const SQLdb = new SQL.Database(fileBuffer);
-  const db = drizzle(SQLdb);
+  // open persistent database file
+  const sqlite = new Database(dbPath);
+  const db = drizzle(sqlite);
 
-  // 🧩 Auto-save DB on exit
-  process.on("exit", () => {
-    const data = SQLdb.export();
-    fs.writeFileSync(dbPath, Buffer.from(data));
-  });
-
-  console.log("🗄️ SQLite database initialized (sql.js) ✅");
+  console.log(`🗄️ SQLite database ready at ${dbPath} ✅`);
   return db;
 };
+
+let cachedDb: ReturnType<typeof drizzle> | null = null;
+export async function getDb() {
+  if (!cachedDb) cachedDb = await initDb();
+  return cachedDb;
+}

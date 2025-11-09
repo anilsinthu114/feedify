@@ -1,10 +1,13 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import express from "express";
 import { initDb } from "../db/drizzle.js";
 import { users } from "../db/schema.js";
 import { AuthenticatedRequest, authorize } from "../middleware/authorize.js";
 import { signJwt, verifyJwt } from "../utils/jwt.js";
+import { sendPasswordResetEmail, sendUserCredentialsEmail } from "../utils/mailer.js";
+import { generateRandomPassword } from "../utils/passwordGenerator.js";
 
 const router = express.Router();
 
@@ -14,12 +17,63 @@ async function getDb() {
   return dbPromise;
 }
 
+/** Role hierarchy for who can create whom */
 const ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: ["admin", "manager", "hr", "user"],
   manager: ["hr", "user"],
   hr: ["user"],
 };
 
+/**
+ * ✅ Create User (only HR or above)
+ * Auto-generates password and emails credentials
+ */
+router.post("/create-user", authorize(["hr"]), async (req: AuthenticatedRequest, res) => {
+  try {
+    const { userName, userEmail } = req.body;
+
+    if (!userName || !userEmail) {
+      return res.status(400).json({ error: "Username and email are required" });
+    }
+
+    const db = await getDb();
+
+    const [existingUser] = await db.select().from(users).where(eq(users.email, userEmail));
+
+    if (existingUser) {
+      return res.status(409).json({ error: "User already exists" });
+    }
+
+    const randomPassword = generateRandomPassword(userName, userEmail);
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        name: userName,
+        email: userEmail,
+        passwordHash,
+        role: "user",
+      })
+      .returning();
+
+    console.log(`👤 Auto-created user: ${userEmail}`);
+
+    await sendUserCredentialsEmail(userEmail, userName, randomPassword);
+
+    return res.status(201).json({
+      message: "User created successfully",
+      user: { id: newUser.id, name: userName, email: userEmail },
+    });
+  } catch (err) {
+    console.error("❌ Error creating user:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+/**
+ * ✅ Manual Register (by admin/manager/hr)
+ */
 router.post("/register", authorize(["admin", "manager", "hr"]), async (req: AuthenticatedRequest, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -53,8 +107,7 @@ router.post("/register", authorize(["admin", "manager", "hr"]), async (req: Auth
     const [created] = await db
       .insert(users)
       .values({ name, email, passwordHash, role })
-      .returning()
-      .execute();
+      .returning();
 
     return res.status(201).json({ ok: true, userId: created.id });
   } catch (err) {
@@ -63,6 +116,9 @@ router.post("/register", authorize(["admin", "manager", "hr"]), async (req: Auth
   }
 });
 
+/**
+ * ✅ Login
+ */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -72,7 +128,6 @@ router.post("/login", async (req, res) => {
     }
 
     const db = await getDb();
-
     const user = await db
       .select()
       .from(users)
@@ -84,34 +139,11 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    let ok = false;
-    let needsUpgrade = false;
-
-    if (user.passwordHash?.startsWith("$2")) {
-      ok = await bcrypt.compare(password, user.passwordHash);
-    } else {
-      ok = password === user.passwordHash;
-      needsUpgrade = ok;
-    }
-
+    const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    if (needsUpgrade) {
-      try {
-        const newHash = await bcrypt.hash(password, 10);
-        await db
-          .update(users)
-          .set({ passwordHash: newHash })
-          .where(eq(users.id, user.id))
-          .execute(); // ensure immediate persistence
-      } catch (upgradeErr) {
-        console.error("Password upgrade failed:", upgradeErr);
-      }
-    }
-
-    // Include name and email in the JWT
     const token = signJwt({
       sub: user.id,
       role: user.role,
@@ -122,7 +154,7 @@ router.post("/login", async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: process.env.NODE_ENV === "production" || false,
+      secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -138,6 +170,40 @@ router.post("/login", async (req, res) => {
   }
 });
 
+/**
+ * ✅ Forgot Password
+ */
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email required" });
+
+    const db = await getDb();
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const resetToken = crypto.randomBytes(24).toString("hex");
+    const resetExpiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    await db
+      .update(users)
+      .set({ resetToken, resetExpiresAt })
+      .where(eq(users.id, user.id));
+
+    const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    await sendPasswordResetEmail(email, user.name, resetLink);
+
+    res.json({ ok: true, message: "Password reset link sent to email" });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/**
+ * ✅ Get all users (Admin only)
+ */
 router.get("/users", authorize(["admin"]), async (req, res) => {
   try {
     const db = await getDb();
@@ -149,7 +215,9 @@ router.get("/users", authorize(["admin"]), async (req, res) => {
   }
 });
 
-// PROFILE: ensure name/email are present and up-to-date
+/**
+ * ✅ Get current user
+ */
 router.get("/me", async (req, res) => {
   try {
     const token =
@@ -159,7 +227,6 @@ router.get("/me", async (req, res) => {
     const payload = verifyJwt<{ sub: number; role: string; name?: string; email?: string }>(token);
     if (!payload) return res.status(401).json({ error: "Invalid token" });
 
-    // Always refresh from DB to reflect immediate updates
     const db = await getDb();
     const dbUser = await db
       .select({
@@ -192,11 +259,14 @@ router.get("/me", async (req, res) => {
   }
 });
 
+/**
+ * ✅ Logout
+ */
 router.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production" || false,
+    secure: process.env.NODE_ENV === "production",
   });
   return res.json({ ok: true });
 });

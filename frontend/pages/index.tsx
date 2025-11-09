@@ -47,7 +47,6 @@ export default function HomePage() {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6 }}
     >
-      {/* 🌓 Theme Toggle */}
       <motion.button
         className={styles.themeToggle}
         onClick={toggleTheme}
@@ -64,14 +63,14 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <h1 className={styles.title}>🧠 Expert Feedback System</h1>
+          <h1 className={styles.title}>🧠 Feedify - An Expert Feedback System</h1>
           <p className={styles.subtitle}>
             Collect, manage, and review expert feedback — securely, efficiently,
             and with ease.
           </p>
 
           <div className={styles.buttons}>
-            <Link href="/hr/login" className={styles.primaryBtn}>
+            <Link href="/login" className={styles.primaryBtn}>
               🔑 Login to Dashboard
             </Link>
 

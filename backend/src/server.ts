@@ -6,6 +6,7 @@ import express from "express";
 import { initDb } from "./db/drizzle.js";
 import { feedbacks, users } from "./db/schema.js";
 import authRoutes from "./routes/auth.js";
+import dashboardRouter from "./routes/dashboard.js";
 import feedbackRoutes from "./routes/feedback.js";
 
 dotenv.config();
@@ -38,6 +39,8 @@ app.get("/", (req, res) => res.json({ ok: true, message: "Expert Feedback API is
     // Mount routes after DB ready
     app.use("/api/auth", authRoutes);
     app.use("/api/feedback", feedbackRoutes);
+
+app.use("/api/dashboard", dashboardRouter);
 
     app.listen(PORT, () => console.log(`✅ Server running at http://localhost:${PORT}`));
   } catch (err) {

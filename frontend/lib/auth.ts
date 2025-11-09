@@ -13,7 +13,7 @@ export async function checkAuth() {
 export async function verifyAccess(roles: string[] = []) {
   try {
     const res = await fetch(`${API_BASE}/api/auth/me`, {
-      credentials: "include", // ✅ send cookie
+      credentials: "include",
     });
 
     if (!res.ok) {

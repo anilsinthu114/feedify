@@ -54,7 +54,7 @@ export default function Navbar() {
                 </Link>
               </li>
               <li>
-                <Link href="/settings" className={styles.link}>
+                <Link href="/hr/settings" className={styles.link}>
                   Settings
                 </Link>
               </li>
@@ -69,7 +69,7 @@ export default function Navbar() {
             </li>
           ) : (
             <li>
-              <Link href="/hr/login" className={styles.link}>
+              <Link href="/login" className={styles.link}>
                 Login
               </Link>
             </li>

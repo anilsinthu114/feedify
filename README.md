@@ -3,7 +3,7 @@
 A secure, role-based full-stack feedback management platform built using **Next.js (TypeScript)**, **Express**, **Drizzle ORM**, and **Bun** runtime.  
 It enables organizations to **collect, manage, and review expert feedback** efficiently with access control for Admins, Managers, HRs, and Users.
 
-# i am just writing key important  files in structure...
+
 
 ---
 
@@ -16,7 +16,7 @@ It enables organizations to **collect, manage, and review expert feedback** effi
 | **Backend** | Express.js + TypeScript (served via Bun) |
 | **Database** | SQLite (using Drizzle ORM) |
 | **Auth & Security** | JWT + HttpOnly Cookies + Role-based Middleware |
-| **Mailing** | Nodemailer (temporary dummy sender for testing) |
+| **Mailing** | SMTP |
 | **Runtime** | Bun v1.2+ |
 | **Package Manager** | Bun PM (ultra-fast install) |
 
@@ -29,7 +29,8 @@ expert-feedback/
 ├── frontend/                # Next.js (CSR + SSR)
 │   ├── pages/
 │   │   ├── index.tsx        # Landing Page
-│   │   ├── hr/login.tsx     # HR Login
+|       |     |---- login.tsx
+│   │   ├── hr/dashboard.tsx    # HR Login
 │   │   ├── hr/register.tsx  # Role-based Registration
 │   │   ├── hr/feedback-new.tsx # Create feedback & send token
 │   │   └── feedback/[token].tsx # Token-based feedback view
@@ -112,11 +113,18 @@ bunx drizzle-kit studio
 # backend/.env
 DATABASE_URL=src/db/feedback.db
 JWT_SECRET=supersecretjwt
-SENDGRID_API_KEY=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
-EMAIL_FROM="Feedify <feedback@resend.dev>"
+
 FRONTEND_URL=http://localhost:3000
 PORT=8000
-RESEND_API_KEY=re_3vU8jAQi_7RkcTbQfEvX1GkDJY1SsiAZN
+APP_NAME=Feedify
+
+#SMTP Configurations
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER = sav19008cm049@gmail.com
+SMTP_PASS = nkna lwah osuj fcjc
+EMAIL_FROM=<no-reply@feedify.com>
 ```
 
 ---
@@ -124,6 +132,11 @@ RESEND_API_KEY=re_3vU8jAQi_7RkcTbQfEvX1GkDJY1SsiAZN
 ### 5️⃣ Run both servers (root)
 
 ```bash
+    cd frontend
+    bun dev
+```
+```
+cd backend
 bun run dev
 ```
 
@@ -174,6 +187,11 @@ Backend and frontend both enforce the same rule through:
 - Professional illustrations & gradients
 
 ---
+## Feature Endorements
+
+-Manager and Admin Dashbords, Anlaytics in frontend integration , backend secured
+- Password Resetting mailing and feature
+
 
 ## 👨‍💻 Contributors
 

@@ -2,11 +2,11 @@
 
 import { API_BASE } from "@/lib/config";
 import { useUser } from "@/lib/UserContext";
+import styles from "@/styles/Login.module.css";
 import { motion } from "framer-motion";
 import Router from "next/router";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import styles from "../../styles/Login.module.css";
 
 export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
@@ -33,14 +33,41 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
+      console.log("Login response data:", data);
       if (!res.ok) {
         setMsg(data.error || "Login failed");
+        console.error("Login error:", data.error);
+        setLoading(false);
         return;
       }
       setMsg("Login successful! Redirecting...");
       await refreshUser();
-      setTimeout(() => Router.push("/hr/feedback-new"), 700);
+      switch(data.role){
+        case "admin":
+          setTimeout(() => {
+            Router.push("/admin/dashboard");
+          }, 1000);
+          return;
+        case "hr":
+          setTimeout(() => {
+            Router.push("/hr/feedback-new");
+          }, 1000);
+          return;
+        case "manager":
+          setTimeout(() => {
+            Router.push("/manager/dashboard");
+          }
+, 1000);
+          return;
+      case "user"  :
+          setTimeout(() => {
+            Router.push("/user/dashboard");
+          }, 1000);
+          return;
+        } 
+        
     } catch (error) {
+      console.error("Login exception:", error);
       setMsg("An error occurred during login");
     } finally {
       setLoading(false);
