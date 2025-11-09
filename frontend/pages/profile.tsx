@@ -17,7 +17,7 @@ export default function ProfilePage() {
 
     if (!user) {
       toast.error("Please log in to access your profile.");
-      router.push("/hr/login");
+      router.push("/login");
       return;
     }
   }, [user, router]);
