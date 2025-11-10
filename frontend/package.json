@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "tsc next.config.ts --module commonjs --esModuleInterop",
     "start": "next start",
     "build": "next build"
   },

@@ -127,6 +127,12 @@ SMTP_PASS = nkna lwah osuj fcjc
 EMAIL_FROM=<no-reply@feedify.com>
 ```
 
+``` bash
+#frontend/.env
+
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_APP_NAME=Feedify
+```
 ---
 
 ### 5️⃣ Run both servers (root)
