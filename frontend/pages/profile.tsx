@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@/lib/UserContext";
-import styles from "../styles/Profile.module.css";
+import styles from "@/styles/ProfilePage.module.css";
 import { motion } from "framer-motion";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
