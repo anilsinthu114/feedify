@@ -54,7 +54,7 @@ export default function RegisterPage() {
       }
 
       setMsg("✅ Registered successfully! Redirecting...");
-      setTimeout(() => Router.push("/hr/login"), 800);
+      setTimeout(() => Router.push("/login"), 800);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setMsg(`❌ ${message}`);
@@ -117,7 +117,7 @@ export default function RegisterPage() {
 
         <p className={styles.footerText}>
           Already have an account?{" "}
-          <span onClick={() => Router.push("/hr/login")} className={styles.link}>
+          <span onClick={() => Router.push("/login")} className={styles.link}>
             Login here
           </span>
         </p>

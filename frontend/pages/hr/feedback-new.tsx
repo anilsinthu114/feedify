@@ -18,7 +18,7 @@ export default function FeedbackNew() {
 
   useEffect(() => {
     checkAuth().then((ok) => {
-      if (!ok) Router.push("/hr/login");
+      if (!ok) Router.push("/login");
       else setAuth(true);
     });
   }, []);

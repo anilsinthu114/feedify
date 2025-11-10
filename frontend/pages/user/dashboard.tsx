@@ -1,10 +1,12 @@
 // src/pages/dashboard/user.tsx
 import DashboardLayout from "@/components/DashboardLayout";
 import { API_BASE } from "@/lib/config";
+import { useTheme } from "@/lib/ThemeContext";
 import { useEffect, useState } from "react";
 
 export default function UserDashboard() {
   const [feedback, setFeedback] = useState<any[]>([]);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     fetch(`${API_BASE}/api/dashboard`, { credentials: "include" })
